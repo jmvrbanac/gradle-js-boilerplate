@@ -1,4 +1,11 @@
 #!/usr/bin/python
+# ======================================
+# Author: John Vrbanac
+# License: GPLv3
+# Description:
+# Generates a quick and dirty Jasmine TestRunner from a template html file. It replaces "$TEST_FILES$"
+# with a generated list of script tags.
+# ======================================
 
 import argparse
 import os
