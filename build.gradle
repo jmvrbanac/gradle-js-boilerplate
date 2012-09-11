@@ -1,0 +1,41 @@
+defaultTasks 'snapshot'
+
+task proj << {}
+proj {
+	// major.minor[.maintenance[.build]]
+	version = "0.1.0.0"
+	versionType = ""
+	versionString = ""
+	buildDir = "target"
+}
+
+task clean (type: Delete) {
+	delete proj.buildDir
+}
+
+task target(type: Directory, dependsOn: 'clean', description: 'Creates artifact output directories') {
+	doLast {
+		file(proj.buildDir).mkdirs()
+	}
+}
+task build(dependsOn: "target", description: "Builds source directories") {
+	    
+}
+
+task snapshot(dependsOn: ["build", "spec:test"]) << {
+	println "Version: " + proj.versionString
+}
+task release(dependsOn: ["build", "spec:test"]) << {
+	println "Version: " +  proj.versionString
+}
+
+gradle.taskGraph.whenReady {
+	taskGraph ->
+	if (!taskGraph.hasTask(release)) {
+		proj.versionType = "SNAPSHOT"
+	} else {
+		proj.versionType = "RELEASE"
+	}
+	proj.versionString = (proj.version + "-" + proj.versionType)
+
+}

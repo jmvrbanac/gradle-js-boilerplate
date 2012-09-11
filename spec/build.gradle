@@ -1,0 +1,23 @@
+// Testing
+// Utilizing dynamic properties like this is deprecated. We'll need to change this later.
+task test(dependsOn:["jasmine"]){}
+
+task prepForJUnit () {
+	doLast {
+		File outputDir = file("../target/junit")
+		outputDir.mkdirs()
+	}
+}
+
+task createJasmineRunner(type: Exec, description: "Build ci-testrunner.html") {
+	commandLine = ["python", "../tools/jasmine/generate_test_runner.py", "./", "../tools/jasmine/ci-testrunner.html", "../tools/jasmine/spec-runner_TEMPLATE.html"]
+}
+
+task jasmine(type: Exec, dependsOn:[":target", "prepForJUnit", "createJasmineRunner"], description: "Runs Jasmine through RhinoJS"){
+	commandLine = ["python", "../tools/jasmine/rhino-jasmine.py", "../tools/jasmine/ci-testrunner.html"]
+}
+
+/*
+task jsHint(type: Exec, dependsOn: ":clean", description: "Runs JSLint over source") {
+	commandLine = ["python", "../tools/jshint/jshint.py"]
+}*/
