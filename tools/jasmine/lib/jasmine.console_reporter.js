@@ -1,142 +1,104 @@
-(function() {
-    if (! jasmine) {
-        throw new Exception("jasmine library does not exist in global namespace!");
+/**
+ Jasmine Reporter that outputs test results to the browser console. 
+ Useful for running in a headless environment such as PhantomJs, ZombieJs etc.
+
+ Usage:
+ // From your html file that loads jasmine:  
+ jasmine.getEnv().addReporter(new jasmine.ConsoleReporter());
+ jasmine.getEnv().execute();
+*/
+
+(function(jasmine, console) {
+  if (!jasmine) {
+    throw "jasmine library isn't loaded!";
+  }
+
+  var ANSI = {}
+  ANSI.color_map = {
+      "green" : 32,
+      "red"   : 31
+  }
+
+  ANSI.colorize_text = function(text, color) {
+    var color_code = this.color_map[color];
+    return "\033[" + color_code + "m" + text + "\033[0m";
+  }
+  
+  var ConsoleReporter = function() {
+    if (!console || !console.log) { throw "console isn't present!"; }
+    this.status = this.statuses.stopped;
+  };
+
+  var proto = ConsoleReporter.prototype;
+  proto.statuses = {
+    stopped : "stopped",
+    running : "running",
+    fail    : "fail",
+    success : "success"
+  };
+
+  proto.reportRunnerStarting = function(runner) {
+    this.status = this.statuses.running;
+    this.start_time = (new Date()).getTime();
+    this.executed_specs = 0;
+    this.passed_specs = 0;
+    this.log("Starting...");
+  };
+
+  proto.reportRunnerResults = function(runner) {
+    var failed = this.executed_specs - this.passed_specs;
+    var spec_str = this.executed_specs + (this.executed_specs === 1 ? " spec, " : " specs, ");
+    var fail_str = failed + (failed === 1 ? " failure in " : " failures in ");
+    var color = (failed > 0)? "red" : "green";
+    var dur = (new Date()).getTime() - this.start_time;
+
+    this.log("");
+    this.log("Finished");
+    this.log("-----------------");
+    this.log(spec_str + fail_str + (dur/1000) + "s.", color);
+
+    this.status = (failed > 0)? this.statuses.fail : this.statuses.success;
+
+    /* Print something that signals that testing is over so that headless browsers
+       like PhantomJs know when to terminate. */
+    this.log(" ");
+    this.log("ConsoleReporter finished");
+  };
+
+
+  proto.reportSpecStarting = function(spec) {
+    this.executed_specs++;
+  };
+
+  proto.reportSpecResults = function(spec) {
+    if (spec.results().passed()) {
+      this.passed_specs++;
+      return;
     }
 
-    /**
-     * Basic reporter that outputs spec results to the browser console.
-     * Useful if you need to test an html page and don't want the TrivialReporter
-     * markup mucking things up.
-     *
-     * Usage:
-     *
-     * jasmine.getEnv().addReporter(new jasmine.ConsoleReporter());
-     * jasmine.getEnv().execute();
-     */
-    var ConsoleReporter = function() {
-        this.started = false;
-        this.finished = false;
-    };
+    var resultText = spec.suite.description + " : " + spec.description;
+    this.log(resultText, "red");
 
-    ConsoleReporter.prototype = {
-        reportRunnerResults: function(runner) {
-            if (this.hasGroupedConsole()) {
-                var suites = runner.suites();
-                startGroup(runner.results(), 'tests');
-                for (var i in suites) {
-                    if (!suites[i].parentSuite) {
-                        suiteResults(suites[i]);
-                    }
-                }
-                console.groupEnd();
-            }
-            else {
-                var dur = (new Date()).getTime() - this.start_time;
-                var failed = this.executed_specs - this.passed_specs;
-                var spec_str = this.executed_specs + (this.executed_specs === 1 ? " spec, " : " specs, ");
-                var fail_str = failed + (failed === 1 ? " failure in " : " failures in ");
-
-                this.log("Runner Finished.");
-                this.log(spec_str + fail_str + (dur/1000) + "s.");
-            }
-            this.finished = true;
-        },
-
-        hasGroupedConsole: function() {
-            var console = jasmine.getGlobal().console;
-            return console && console.info && console.warn && console.group && console.groupEnd && console.groupCollapsed;
-        },
-
-        reportRunnerStarting: function(runner) {
-            this.started = true;
-            if (!this.hasGroupedConsole()) {
-                this.start_time = (new Date()).getTime();
-                this.executed_specs = 0;
-                this.passed_specs = 0;
-                this.log("Runner Started.");
-            }
-        },
-
-        reportSpecResults: function(spec) {
-            if (!this.hasGroupedConsole()) {
-                var resultText = " - - Failed.";
-
-                if (spec.results().passed()) {
-                    this.passed_specs++;
-                    resultText = " - - Passed.";
-                }
-
-                this.log(resultText);
-            }
-        },
-
-        reportSpecStarting: function(spec) {
-            if (!this.hasGroupedConsole()) {
-                this.executed_specs++;
-                this.log(" - " + spec.suite.description + ' : ' + spec.description + ' ... ');
-            }
-        },
-
-        reportSuiteResults: function(suite) {
-            if (!this.hasGroupedConsole()) {
-                var results = suite.results();
-                this.log(suite.description + ": " + results.passedCount + " of " + results.totalCount + " passed.");
-            }
-        },
-
-        log: function(str) {
-            var console = jasmine.getGlobal().console;
-            if (console && console.log) {
-                console.log(str);
-            }
-        }
-    };
-
-    function suiteResults(suite) {
-        var results = suite.results();
-        startGroup(results, suite.description);
-        var specs = suite.specs();
-        for (var i in specs) {
-            if (specs.hasOwnProperty(i)) {
-                specResults(specs[i]);
-            }
-        }
-        var suites = suite.suites();
-        for (var j in suites) {
-            if (suites.hasOwnProperty(j)) {
-                suiteResults(suites[j]);
-            }
-        }
-        console.groupEnd();
+    var items = spec.results().getItems()
+    for (var i = 0; i < items.length; i++) {
+      var trace = items[i].trace.stack || items[i].trace;
+      this.log(trace, "red");
     }
+  };
 
-    function specResults(spec) {
-        var results = spec.results();
-        startGroup(results, spec.description);
-        var items = results.getItems();
-        for (var k in items) {
-            if (items.hasOwnProperty(k)) {
-                itemResults(items[k]);
-            }
-        }
-        console.groupEnd();
-    }
+  proto.reportSuiteResults = function(suite) {
+    if (!suite.parentSuite) { return; }
+    var results = suite.results();
+    var failed = results.totalCount - results.passedCount;
+    var color = (failed > 0)? "red" : "green";
+    this.log(suite.description + ": " + results.passedCount + " of " + results.totalCount + " passed.", color);
+  };
 
-    function itemResults(item) {
-        if (item.passed && !item.passed()) {
-            console.warn({actual:item.actual,expected: item.expected});
-            item.trace.message = item.matcherName;
-            console.error(item.trace);
-        } else {
-            console.info('Passed');
-        }
-    }
+  proto.log = function(str, color) {
+    var text = (color != undefined)? ANSI.colorize_text(str, color) : str;
+    console.log(text)
+  };
 
-    function startGroup(results, description) {
-        var consoleFunc = (results.passed() && console.groupCollapsed) ? 'groupCollapsed' : 'group';
-        console[consoleFunc](description + ' (' + results.passedCount + '/' + results.totalCount + ' passed, ' + results.failedCount + ' failures)');
-    }
+  jasmine.ConsoleReporter = ConsoleReporter;
+})(jasmine, console);
 
-    // export public
-    jasmine.ConsoleReporter = ConsoleReporter;
-})();

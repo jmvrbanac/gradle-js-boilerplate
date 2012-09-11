@@ -14,7 +14,20 @@ task createJasmineRunner(type: Exec, description: "Build ci-testrunner.html") {
 }
 
 task jasmine(type: Exec, dependsOn:[":target", "prepForJUnit", "createJasmineRunner"], description: "Runs Jasmine through RhinoJS"){
-	commandLine = ["python", "../tools/jasmine/rhino-jasmine.py", "../tools/jasmine/ci-testrunner.html"]
+	os = System.getProperty("os.name").toLowerCase();
+	phantomjs = "phantomjs"
+	
+	if (os.contains("windows")) {
+		phantomjs = "../tools/phantomjs/win/" + phantomjs + ".exe"
+	} else if (os.contains("mac os")) {
+		phantomjs = "../tools/phantomjs/mac/" + phantomjs
+	} else {
+		phantomjs = "../tools/phantomjs/linux/bin/" + phantomjs 
+	}
+	
+	phantomjs = file(phantomjs).absolutePath
+
+	commandLine = [phantomjs, "../tools/phantomjs/run_jasmine_test.coffee", "../tools/jasmine/ci-testrunner.html"]
 }
 
 /*
